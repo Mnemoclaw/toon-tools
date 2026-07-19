@@ -1,0 +1,18 @@
+{
+  "name": "toon-lint",
+  "version": "1.0.0",
+  "description": "Validator for .toon files: parse errors, declared-length mismatches, round-trip integrity",
+  "type": "module",
+  "bin": {
+    "toon-lint": "./index.js"
+  },
+  "main": "index.js",
+  "license": "MIT",
+  "keywords": ["toon", "lint", "validator", "json"],
+  "dependencies": {
+    "@toon-format/toon": "^2.3.0",
+    "commander": "^12.1.0",
+    "chalk": "^5.3.0",
+    "glob": "^10.4.5"
+  }
+}

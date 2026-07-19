@@ -1,0 +1,18 @@
+{
+  "name": "toon-proxy",
+  "version": "1.0.0",
+  "description": "Drop-in reverse proxy that converts eligible JSON blocks in LLM prompts to TOON before forwarding upstream",
+  "type": "module",
+  "main": "server.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["toon", "json", "llm", "proxy", "middleware", "tokens"],
+  "dependencies": {
+    "@toon-format/toon": "^2.3.0",
+    "gpt-3-encoder": "^1.1.2",
+    "express": "^4.19.2",
+    "node-fetch": "^3.3.2"
+  }
+}

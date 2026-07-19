@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TOON Playground — mesure la compression avant de l'adopter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #14171c;
+    --ink-soft: #1c2028;
+    --paper: #ede6d6;
+    --paper-line: #d8cfb8;
+    --brass: #c9932e;
+    --verdigris: #4f8577;
+    --text: #e8e4d9;
+    --text-dim: #8b8f99;
+    --danger: #c25b4a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    padding: 3rem 2rem 1.5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--brass);
+    margin: 0 0 0.75rem;
+  }
+  h1 {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: var(--text-dim);
+    font-size: 1rem;
+    max-width: 60ch;
+    line-height: 1.5;
+  }
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 2rem 4rem;
+  }
+  .panes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--paper-line);
+    border: 1px solid var(--paper-line);
+  }
+  @media (max-width: 800px) {
+    .panes { grid-template-columns: 1fr; }
+  }
+  .pane {
+    background: var(--ink-soft);
+    display: flex;
+    flex-direction: column;
+    min-height: 380px;
+  }
+  .pane.output { background: var(--paper); color: var(--ink); }
+  .pane-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.85rem 1.1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-dim);
+  }
+  .pane.output .pane-label {
+    border-bottom: 1px solid var(--paper-line);
+    color: #6b6455;
+  }
+  textarea, pre {
+    flex: 1;
+    margin: 0;
+    padding: 1.1rem;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    resize: none;
+    outline: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  textarea::placeholder { color: var(--text-dim); }
+
+  /* Signature element: the compression gauge, like a receipt ticker */
+  .gauge {
+    margin-top: 2rem;
+    border: 1px solid var(--paper-line);
+    background: var(--ink-soft);
+    padding: 1.25rem 1.5rem;
+  }
+  .gauge-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+  }
+  .bar-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.65rem; }
+  .bar-row:last-child { margin-bottom: 0; }
+  .bar-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    width: 3.2rem;
+    flex-shrink: 0;
+    color: var(--text-dim);
+  }
+  .bar-track {
+    flex: 1;
+    height: 1.4rem;
+    background: rgba(255,255,255,0.05);
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    transition: width 0.4s cubic-bezier(.2,.7,.2,1);
+    width: 0%;
+  }
+  .bar-fill.json { background: var(--danger); }
+  .bar-fill.toon { background: var(--verdigris); }
+  .bar-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    width: 6.5rem;
+    text-align: right;
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+  .savings-line {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--paper-line);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+  }
+  .savings-value {
+    color: var(--brass);
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+  .eligibility-note {
+    margin-top: 0.9rem;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .eligibility-note.warn { color: var(--danger); }
+
+  footer {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 2rem 3rem;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    line-height: 1.6;
+  }
+  footer a { color: var(--brass); }
+  .error-banner {
+    color: var(--danger);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    padding: 1.1rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">JSON → TOON · local, aucune donnée envoyée</p>
+  <h1>TOON Playground</h1>
+  <p class="sub">Colle un JSON, regarde ce que ça donne en TOON, et surtout combien de tokens tu gagnes réellement sur <em>tes</em> données — pas sur un exemple générique.</p>
+</header>
+
+<main>
+  <div class="panes">
+    <div class="pane">
+      <div class="pane-label">JSON — entrée</div>
+      <textarea id="jsonInput" spellcheck="false"></textarea>
+    </div>
+    <div class="pane output">
+      <div class="pane-label">TOON — sortie</div>
+      <pre id="toonOutput"></pre>
+    </div>
+  </div>
+
+  <div class="gauge">
+    <div class="gauge-title">Jauge de compression (tokens)</div>
+    <div class="bar-row">
+      <span class="bar-tag">JSON</span>
+      <div class="bar-track"><div class="bar-fill json" id="barJson"></div></div>
+      <span class="bar-count" id="countJson">—</span>
+    </div>
+    <div class="bar-row">
+      <span class="bar-tag">TOON</span>
+      <div class="bar-track"><div class="bar-fill toon" id="barToon"></div></div>
+      <span class="bar-count" id="countToon">—</span>
+    </div>
+    <div class="savings-line">
+      <span>Économie de tokens</span>
+      <span class="savings-value" id="savingsPct">—</span>
+    </div>
+    <div class="eligibility-note" id="eligibilityNote"></div>
+  </div>
+</main>
+
+<footer>
+  Utilise le package officiel <a href="https://www.npmjs.com/package/@toon-format/toon" target="_blank">@toon-format/toon</a> pour l'encodage
+  (chargé via esm.sh, rien n'est réimplémenté ici) et une estimation de tokens compatible GPT pour le comptage.
+  Tout tourne dans le navigateur — aucune donnée n'est envoyée à un serveur.
+</footer>
+
+<script type="module">
+import { encode as toonEncode } from 'https://esm.sh/@toon-format/toon@2';
+import { encode as gptEncode } from 'https://esm.sh/gpt-tokenizer@2';
+
+const input = document.getElementById('jsonInput');
+const output = document.getElementById('toonOutput');
+const barJson = document.getElementById('barJson');
+const barToon = document.getElementById('barToon');
+const countJson = document.getElementById('countJson');
+const countToon = document.getElementById('countToon');
+const savingsPct = document.getElementById('savingsPct');
+const eligibilityNote = document.getElementById('eligibilityNote');
+
+const SAMPLE = {
+  users: [
+    { id: 1, name: "Alice", role: "admin", active: true },
+    { id: 2, name: "Bob", role: "user", active: true },
+    { id: 3, name: "Chloé", role: "user", active: false }
+  ],
+  meta: { total: 3, page: 1 }
+};
+
+function tabularEligibility(data) {
+  let totalArrays = 0;
+  let eligibleArrays = 0;
+  function walk(node) {
+    if (Array.isArray(node)) {
+      totalArrays++;
+      if (node.length > 0 && node.every(i => i && typeof i === 'object' && !Array.isArray(i))) {
+        const keys = Object.keys(node[0]).sort().join(',');
+        const uniform = node.every(i => Object.keys(i).sort().join(',') === keys);
+        const flat = node.every(i => Object.values(i).every(v => typeof v !== 'object' || v === null));
+        if (uniform && flat) eligibleArrays++;
+      }
+      node.forEach(walk);
+    } else if (node && typeof node === 'object') {
+      Object.values(node).forEach(walk);
+    }
+  }
+  walk(data);
+  return totalArrays === 0 ? null : Math.round((eligibleArrays / totalArrays) * 100);
+}
+
+function update() {
+  const raw = input.value.trim();
+  if (!raw) {
+    output.textContent = '';
+    barJson.style.width = '0%';
+    barToon.style.width = '0%';
+    countJson.textContent = '—';
+    countToon.textContent = '—';
+    savingsPct.textContent = '—';
+    eligibilityNote.textContent = '';
+    eligibilityNote.className = 'eligibility-note';
+    return;
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch (e) {
+    output.innerHTML = '';
+    const banner = document.createElement('div');
+    banner.className = 'error-banner';
+    banner.textContent = 'JSON invalide : ' + e.message;
+    output.appendChild(banner);
+    return;
+  }
+
+  let toon;
+  try {
+    toon = toonEncode(data);
+  } catch (e) {
+    output.textContent = 'Erreur d\'encodage TOON : ' + e.message;
+    return;
+  }
+
+  output.textContent = toon;
+
+  const jsonCompact = JSON.stringify(data);
+  const jsonTokens = gptEncode(jsonCompact).length;
+  const toonTokens = gptEncode(toon).length;
+  const maxTokens = Math.max(jsonTokens, toonTokens, 1);
+
+  barJson.style.width = Math.round((jsonTokens / maxTokens) * 100) + '%';
+  barToon.style.width = Math.round((toonTokens / maxTokens) * 100) + '%';
+  countJson.textContent = jsonTokens + ' tok';
+  countToon.textContent = toonTokens + ' tok';
+
+  const pct = jsonTokens > 0 ? Math.round((1 - toonTokens / jsonTokens) * 1000) / 10 : 0;
+  savingsPct.textContent = (pct >= 0 ? '−' : '+') + Math.abs(pct) + '%';
+
+  const eligibility = tabularEligibility(data);
+  if (eligibility === null) {
+    eligibilityNote.textContent = 'Aucun tableau détecté — pas de gain tabulaire possible sur ce payload.';
+    eligibilityNote.className = 'eligibility-note';
+  } else if (eligibility < 40) {
+    eligibilityNote.textContent = `Éligibilité tabulaire : ${eligibility}%. Données peu uniformes ou profondément imbriquées — le gain TOON restera limité ici.`;
+    eligibilityNote.className = 'eligibility-note warn';
+  } else {
+    eligibilityNote.textContent = `Éligibilité tabulaire : ${eligibility}%. Ce payload est un bon candidat pour TOON.`;
+    eligibilityNote.className = 'eligibility-note';
+  }
+}
+
+input.addEventListener('input', update);
+input.value = JSON.stringify(SAMPLE, null, 2);
+update();
+</script>
+</body>
+</html>
