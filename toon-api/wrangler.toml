@@ -1,0 +1,11 @@
+name = "toon-api"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# Free tier: 100k req/day, plenty for this project's expected load.
+# No KV, D1, or R2 bindings needed — stateless converter.
+
+# Set API key via: wrangler secret put RAPIDAPI_PROXY_SECRET
+# (optional — if set, only requests with matching X-RapidAPI-Proxy-Secret header are accepted)
+[vars]
+ALLOW_DIRECT_ACCESS = "true"
