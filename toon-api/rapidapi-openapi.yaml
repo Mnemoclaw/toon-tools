@@ -1,0 +1,163 @@
+openapi: 3.0.3
+info:
+  title: TOON Converter
+  summary: Convert JSON payloads to TOON and measure real token savings for LLM prompts.
+  description: |
+    TOON (Token-Oriented Object Notation) is a compact format that reduces the
+    number of tokens sent to LLMs when embedding structured data in prompts.
+
+    This API does two things:
+      - **Convert**: takes a JSON value, returns the TOON-encoded string + full
+        token savings analysis (JSON vs TOON token counts, % saved, tabular
+        eligibility, recommendation).
+      - **Analyze**: same metrics without the TOON output (cheaper, smaller
+        response) — useful for batch pre-screening or CI checks.
+
+    Token counting uses a GPT-compatible BPE tokenizer. Everything runs
+    statelessly on Cloudflare Workers (~10–50 ms latency).
+  version: "1.0.0"
+  contact:
+    name: Jacques Chauvin
+    url: https://github.com/Mnemoclaw/toon-tools
+  license:
+    name: MIT
+servers:
+  - url: https://toon-api.contactjccoaching.workers.dev
+    description: Origin (use RapidAPI base URL in production)
+tags:
+  - name: convert
+    description: Convert JSON to TOON
+  - name: analyze
+    description: Analyze token savings without converting
+  - name: meta
+    description: Service metadata
+paths:
+  /v1/convert:
+    post:
+      tags: [convert]
+      operationId: convert
+      summary: Convert a JSON value to TOON and measure token savings
+      description: |
+        Accepts either a raw JSON value (the data to convert) or a wrapper
+        `{ "data": <value> }`. Returns the TOON-encoded string plus a
+        `metrics` object describing the savings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  description: Any JSON value to convert.
+              required: [data]
+            examples:
+              simple:
+                value:
+                  data:
+                    users:
+                      - { id: 1, name: Alice, role: admin, active: true }
+                      - { id: 2, name: Bob, role: user, active: true }
+                      - { id: 3, name: Chloé, role: user, active: false }
+                    meta: { total: 3, page: 1 }
+      responses:
+        '200':
+          description: Conversion successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  toon: { type: string }
+                  metrics:
+                    $ref: '#/components/schemas/Metrics'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '422':
+          $ref: '#/components/responses/EncodingFailed'
+  /v1/analyze:
+    post:
+      tags: [analyze]
+      operationId: analyze
+      summary: Token savings analysis without TOON output
+      description: |
+        Same as `/v1/convert` but the response omits the `toon` field —
+        useful when you only want the metrics (e.g., to decide whether
+        to convert in a CI pipeline).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  description: Any JSON value to analyze.
+              required: [data]
+      responses:
+        '200':
+          description: Analysis successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metrics:
+                    $ref: '#/components/schemas/Metrics'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '422':
+          $ref: '#/components/responses/EncodingFailed'
+  /healthz:
+    get:
+      tags: [meta]
+      operationId: healthz
+      summary: Liveness probe
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  service: { type: string }
+                  version: { type: string }
+components:
+  schemas:
+    Metrics:
+      type: object
+      properties:
+        json_tokens: { type: integer, description: Token count of compact JSON }
+        toon_tokens: { type: integer, description: Token count of TOON output }
+        saved_tokens: { type: integer, description: Difference (json - toon) }
+        saved_pct: { type: number, description: Percentage saved, 1 decimal }
+        tabular_eligibility:
+          type: integer
+          nullable: true
+          description: |
+            % of arrays in the payload that are "tabular eligible" (uniform
+            arrays of flat objects). `null` when the payload contains no arrays.
+        recommendation:
+          type: string
+          enum: [convert, neutral, keep_json]
+          description: |
+            `convert` if saved_pct ≥ 15, `neutral` if 0–15,
+            `keep_json` if TOON is larger than JSON.
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        detail: { type: string }
+  responses:
+    InvalidRequest:
+      description: Invalid request body
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    EncodingFailed:
+      description: TOON encoding failed (e.g., circular references)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
